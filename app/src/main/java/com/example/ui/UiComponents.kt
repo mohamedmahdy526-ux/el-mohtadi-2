@@ -14,6 +14,8 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -3342,7 +3344,7 @@ fun SettingsView(viewModel: LaborViewModel) {
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(imageVector = Icons.Default.Cloud, contentDescription = "Google Drive Sync", modifier = Modifier.size(18.dp), tint = Color.Black)
+                        Icon(imageVector = Icons.Default.Send, contentDescription = "Google Drive Sync", modifier = Modifier.size(18.dp), tint = Color.Black)
                         Text(text = "مزامنة ورفع احتياطي على Google Drive 💾", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }

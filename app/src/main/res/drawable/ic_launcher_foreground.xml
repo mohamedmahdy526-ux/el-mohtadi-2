@@ -4,29 +4,61 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Center Canvas (54,54) -->
-    <!-- Left-to-Right diagonal cross axes / hammers representing industrial labor -->
-    <path
-        android:fillColor="#ECEFF1"
-        android:pathData="M38,70 L70,38 L74,42 L42,74 Z" />
-    <path
-        android:fillColor="#ECEFF1"
-        android:pathData="M70,70 L38,38 L34,42 L66,74 Z" />
+    <!-- Stylized Worker Figure (Vector Art) -->
 
-    <!-- Sturdy Construction Hardhat / Core warning gear -->
-    <!-- Main Dome -->
+    <!-- Shoulders & Vest -->
     <path
-        android:fillColor="#FFB300"
-        android:pathData="M26,52 C26,28 82,28 82,52 Z" />
-
-    <!-- Dome Top Spine Ridge -->
-    <path
-        android:fillColor="#FFA000"
-        android:pathData="M50,28 H58 V52 H50 Z" />
-
-    <!-- Front Visor Brim -->
-    <path
-        android:fillColor="#FF9100"
-        android:pathData="M20,52 H88 V58 H20 Z" />
+        android:fillColor="#1E293B"
+        android:pathData="M24,92 C24,80 34,74 54,74 C74,74 84,80 84,92 L84,95 L24,95 Z" />
         
+    <!-- Safety Vest Orange V-Neck Strap -->
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M42,75 L54,88 L66,75 L62,74 L54,83 L46,74 Z" />
+        
+    <!-- Safety Vest Yellow Stripes -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M30,80 L36,81 L36,95 L30,95 Z M72,80 L78,81 L78,95 L72,95 Z" />
+
+    <!-- Neck -->
+    <path
+        android:fillColor="#FFD54F"
+        android:pathData="M46,65 C46,65 46,75 46,78 C48,82 60,82 62,78 C62,75 62,65 62,65 Z" />
+
+    <!-- Face / Head -->
+    <path
+        android:fillColor="#FFE082"
+        android:pathData="M36,54 C36,43 72,43 72,54 C72,65 72,66 54,66 C36,66 36,65 36,54 Z" />
+
+    <!-- Worker Eyes / Stylized Glasses (Minimalist Slate/Blue) -->
+    <path
+        android:fillColor="#334155"
+        android:pathData="M42,54 C44,54 46,56 46,58 C46,60 44,61 42,61 C40,61 38,60 38,58 C38,56 40,54 42,54 Z M66,54 C68,54 70,56 70,58 C70,60 68,61 66,61 C64,61 62,60 62,58 C62,56 64,54 66,54 Z" />
+
+    <!-- Smiling Mouth -->
+    <path
+        android:fillColor="#334155"
+        android:pathData="M50,60 Q54,63 58,60 L58,61 Q54,64 50,61 Z" />
+
+    <!-- Construction Helmet Dome (Deep rich golden yellow) -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M28,45 C28,20 80,20 80,45 Z" />
+
+    <!-- Helmet Top Spine/Ridge -->
+    <path
+        android:fillColor="#D97706"
+        android:pathData="M50,20 H58 V45 H50 Z" />
+
+    <!-- Helmet Brim (Thick stylized visor brim) -->
+    <path
+        android:fillColor="#FABF2C"
+        android:pathData="M22,43 C22,43 54,39 86,43 C88,44 88,48 86,48 C54,44 22,48 22,43 Z" />
+
+    <!-- Small Safety Emblem/Badge on Helmet front -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M51,28 H57 V34 H51 Z M53,30 H55 V32 H53 Z" />
+
 </vector>

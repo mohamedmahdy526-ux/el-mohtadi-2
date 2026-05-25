@@ -42,7 +42,7 @@ import com.example.database.Attendance
 import com.example.database.PayrollSnapshot
 import com.example.database.Site
 import com.example.database.Worker
-import com.example.ui.theme.ConstructionSafetyYellow
+import com.example.ui.theme.*
 import com.example.viewmodel.DateStats
 import com.example.viewmodel.LaborViewModel
 import com.example.viewmodel.WorkerAttendanceState
@@ -125,6 +125,32 @@ fun MainAppContainer(viewModel: LaborViewModel) {
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         contactPickerLauncher.launch(null)
+    }
+
+    var showMultiContactImportDialog by remember { mutableStateOf(false) }
+
+    val multiContactPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.loadPhoneContacts(context.contentResolver)
+            showMultiContactImportDialog = true
+        } else {
+            Toast.makeText(context, "الرجاء منح صلاحية الوصول لجهات الاتصال لاستيراد العمال", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    val onMultiImportClick = {
+        val permissionCheck = androidx.core.content.ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.READ_CONTACTS
+        )
+        if (permissionCheck == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            viewModel.loadPhoneContacts(context.contentResolver)
+            showMultiContactImportDialog = true
+        } else {
+            multiContactPermissionLauncher.launch(android.Manifest.permission.READ_CONTACTS)
+        }
     }
 
     // Navigation state helper
@@ -383,7 +409,8 @@ fun MainAppContainer(viewModel: LaborViewModel) {
                         onBackToWorkersList = { selectedWorkerIdForDetails = null },
                         onImportClick = {
                             permissionLauncher.launch(android.Manifest.permission.READ_CONTACTS)
-                        }
+                        },
+                        onMultiImportClick = onMultiImportClick
                     )
                     AppScreen.Sites -> SitesView(
                         viewModel = viewModel,
@@ -447,6 +474,17 @@ fun MainAppContainer(viewModel: LaborViewModel) {
             }
         )
     }
+
+    if (showMultiContactImportDialog) {
+        MultiContactImportDialog(
+            viewModel = viewModel,
+            onDismiss = { showMultiContactImportDialog = false },
+            onImportCompleted = { count ->
+                showMultiContactImportDialog = false
+                Toast.makeText(context, "تم استيراد عدد $count من العمال بنجاح بأجر وإضافي موحد!", Toast.LENGTH_LONG).show()
+            }
+        )
+    }
 }
 
 // Simple delay function helper
@@ -460,40 +498,70 @@ fun SplashScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.primary),
+            .background(
+                brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primary,
+                        Color(0xFF0F172A)
+                    )
+                )
+            ),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(24.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Warning,
-                contentDescription = "Construction Crane Icon",
-                tint = ConstructionSafetyYellow,
-                modifier = Modifier.size(96.dp)
-            )
-            Spacer(modifier = Modifier.height(24.dp))
+            // Elegant glowing outer circle for icon
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .background(
+                        color = Color.White.copy(alpha = 0.07f),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(90.dp)
+                        .background(
+                            color = ConstructionSafetyYellow.copy(alpha = 0.15f),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Build,
+                        contentDescription = "Construction Icon",
+                        tint = ConstructionSafetyYellow,
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(28.dp))
             Text(
-                text = "مـديري الرواتب والعمال الكادحين",
+                text = "مـديري الرواتب والعمال",
                 color = Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
+                fontSize = 24.sp,
+                fontWeight = FontWeight.ExtraBold,
+                textAlign = TextAlign.Center,
+                letterSpacing = 0.5.sp
             )
             Text(
-                text = "Construction Labor Manager",
-                color = Color.White.copy(alpha = 0.8f),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Normal,
+                text = "نظام ذكي متكامل للمقاولات وإدارة الأجور",
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 4.dp)
+                modifier = Modifier.padding(top = 8.dp)
             )
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(modifier = Modifier.height(40.dp))
             CircularProgressIndicator(
                 color = ConstructionSafetyYellow,
                 strokeWidth = 3.dp,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(32.dp)
             )
         }
     }
@@ -516,56 +584,101 @@ fun PinLockScreen(correctPin: String, onUnlocked: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Lock,
-                contentDescription = "Locked",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(64.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "أدخل رمز المرور المكون من 4 أرقام",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "Enter 4-Digit Security PIN",
-                fontSize = 14.sp,
-                color = Color.Gray
-            )
+            // Elegant key shield icon with a glowing background
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = "Locked",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+            
             Spacer(modifier = Modifier.height(24.dp))
+            
+            Text(
+                text = "رمز حماية الحسابات",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "يرجى إدخال الرمز المكون من 4 أرقام للمتابعة",
+                fontSize = 13.sp,
+                color = Color.Gray,
+                textAlign = TextAlign.Center
+            )
+            
+            Spacer(modifier = Modifier.height(32.dp))
 
             // PIN circles indicator
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 for (i in 1..4) {
+                    val active = enteredPin.length >= i
+                    val color = if (pinError) {
+                        MaterialTheme.colorScheme.error
+                    } else if (active) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)
+                    }
+                    val size = if (active) 16.dp else 14.dp
+                    
                     Box(
                         modifier = Modifier
-                            .size(20.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (enteredPin.length >= i) MaterialTheme.colorScheme.primary
-                                else if (pinError) MaterialTheme.colorScheme.error
-                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-                            )
-                    )
+                            .size(20.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(size)
+                                .clip(CircleShape)
+                                .background(color)
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
             // Custom large numeric grid
             val buttons = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "مسح", "0", "تأكيد")
             Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 for (rowIndex in 0..3) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        horizontalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
                         for (colIndex in 0..2) {
                             val buttonText = buttons[rowIndex * 3 + colIndex]
+                            val isSpecial = buttonText == "تأكيد" || buttonText == "مسح"
+                            val containerColor = if (buttonText == "تأكيد") {
+                                ConstructionSafetyYellow
+                            } else if (buttonText == "مسح") {
+                                MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            }
+                            val contentColor = if (buttonText == "تأكيد") {
+                                Color.Black
+                            } else if (buttonText == "مسح") {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            }
+
                             Button(
                                 onClick = {
                                     pinError = false
@@ -586,18 +699,18 @@ fun PinLockScreen(correctPin: String, onUnlocked: () -> Unit) {
                                         }
                                     }
                                 },
-                                modifier = Modifier.size(76.dp),
+                                modifier = Modifier.size(72.dp),
                                 shape = CircleShape,
+                                border = if (!isSpecial) BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)) else null,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (buttonText == "تأكيد") ConstructionSafetyYellow
-                                    else if (buttonText == "مسح") MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
-                                    else MaterialTheme.colorScheme.surface,
-                                    contentColor = MaterialTheme.colorScheme.onSurface
-                                )
+                                    containerColor = containerColor,
+                                    contentColor = contentColor
+                                ),
+                                contentPadding = PaddingValues(0.dp)
                             ) {
                                 Text(
                                     text = buttonText,
-                                    fontSize = 18.sp,
+                                    fontSize = if (isSpecial) 14.sp else 22.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -627,29 +740,74 @@ fun DashboardView(
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
-        // Simple Top Navigation header for date swapping
+        // 1. Sleek Top Header Greeting
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = "Construction Crane Icon",
+                tint = ConstructionSafetyYellow,
+                modifier = Modifier.size(28.dp)
+            )
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "مرحباً بك يا بشمهندس 👋",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "لوحة إدارة العمليات الإنشائية والأجور",
+                    fontSize = 11.sp,
+                    color = Color.Gray
+                )
+            }
+        }
+
+        // 2. Active Date Selection Card (Deep slate to blue gradient)
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
+                    .background(
+                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary,
+                                Color(0xFF1E293B)
+                            )
+                        )
+                    )
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(onClick = {
-                    val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-                    val cal = Calendar.getInstance()
-                    cal.time = format.parse(date) ?: Date()
-                    cal.add(Calendar.DAY_OF_YEAR, -1)
-                    viewModel.selectedDate.value = format.format(cal.time)
-                }) {
+                IconButton(
+                    onClick = {
+                        val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                        val cal = Calendar.getInstance()
+                        cal.time = format.parse(date) ?: Date()
+                        cal.add(Calendar.DAY_OF_YEAR, -1)
+                        viewModel.selectedDate.value = format.format(cal.time)
+                    },
+                    modifier = Modifier
+                        .background(color = Color.White.copy(alpha = 0.1f), shape = CircleShape)
+                        .size(36.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = "Previous Day",
-                        tint = Color.White
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
@@ -666,53 +824,61 @@ fun DashboardView(
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "التاريخ واليوم النشط",
-                        fontSize = 12.sp,
+                        text = "التاريخ واليوم النشط حالياً",
+                        fontSize = 11.sp,
                         color = Color.White.copy(alpha = 0.7f),
                         fontWeight = FontWeight.Bold
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = if (dayName.isNotEmpty()) "$dayName، $date" else date,
-                        fontSize = 18.sp,
+                        fontSize = 16.sp,
                         color = Color.White,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.ExtraBold
                     )
                 }
 
-                IconButton(onClick = {
-                    val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-                    val cal = Calendar.getInstance()
-                    cal.time = format.parse(date) ?: Date()
-                    cal.add(Calendar.DAY_OF_YEAR, 1)
-                    viewModel.selectedDate.value = format.format(cal.time)
-                }) {
+                IconButton(
+                    onClick = {
+                        val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                        val cal = Calendar.getInstance()
+                        cal.time = format.parse(date) ?: Date()
+                        cal.add(Calendar.DAY_OF_YEAR, 1)
+                        viewModel.selectedDate.value = format.format(cal.time)
+                    },
+                    modifier = Modifier
+                        .background(color = Color.White.copy(alpha = 0.1f), shape = CircleShape)
+                        .size(36.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.ArrowForward,
                         contentDescription = "Next Day",
-                        tint = Color.White
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         // Large high-visibility Stats counter grid
         Text(
             text = "إحصائيات اليوم وتحديثات الحضور والأجور",
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(bottom = 10.dp)
         )
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             DashboardStatsCard(
                 title = "الحاضرين اليوم",
                 value = stats.presentCount.toString(),
-                subtitle = "إجمالي عدد العمال المسجلين حضوراً",
+                subtitle = "إجمالي عمال الموقع اليوم",
                 modifier = Modifier.weight(1f),
                 color = MaterialTheme.colorScheme.surface,
                 icon = Icons.Default.Person,
@@ -721,33 +887,33 @@ fun DashboardView(
             DashboardStatsCard(
                 title = "صافي الرواتب اليومية",
                 value = "${stats.netTotal} ج.م",
-                subtitle = "شامل الإضافي والسلف المسجلة",
+                subtitle = "شامل الساعات الإضافية والسلف",
                 modifier = Modifier.weight(1f),
                 color = MaterialTheme.colorScheme.surface,
                 icon = Icons.Default.Check,
-                iconColor = MaterialTheme.colorScheme.secondary
+                iconColor = AccentTeal
             )
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             DashboardStatsCard(
                 title = "السلف اليومية",
                 value = "${stats.totalAdvances} ج.م",
-                subtitle = "سحب نقدي مؤقت للعمال",
+                subtitle = "سحب نقدي مؤقت مسجل اليوم",
                 modifier = Modifier.weight(1f),
                 color = MaterialTheme.colorScheme.surface,
                 icon = Icons.Default.Warning,
-                iconColor = MaterialTheme.colorScheme.error
+                iconColor = AbsentRed
             )
             DashboardStatsCard(
                 title = "قيمة العمل الإضافي",
                 value = "${stats.totalOvertimePay} ج.م",
-                subtitle = "مقابل الساعات الإضافية المعتمدة",
+                subtitle = "مستحقات إضافي العمال المعتمدة",
                 modifier = Modifier.weight(1f),
                 color = MaterialTheme.colorScheme.surface,
                 icon = Icons.Default.Star,
@@ -762,7 +928,8 @@ fun DashboardView(
             text = "لوحة التحكم السريعة وإجراءات المقاول",
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(bottom = 10.dp)
         )
 
         Button(
@@ -774,17 +941,23 @@ fun DashboardView(
                 .fillMaxWidth()
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(imageVector = Icons.Default.Refresh, contentDescription = "Autofill")
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = "Autofill",
+                    tint = ConstructionSafetyYellow
+                )
                 Text(
                     text = "نسخ تفصيلية لحضور الأمس تلقائياً (ملء ذكي)",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
+                    color = Color.White,
                     textAlign = TextAlign.Center
                 )
             }
@@ -794,19 +967,28 @@ fun DashboardView(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Button(
                 onClick = onNavigateToAttendance,
                 modifier = Modifier
                     .weight(1f)
-                    .height(64.dp),
+                    .height(60.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = ConstructionSafetyYellow),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(imageVector = Icons.Default.Check, contentDescription = "Add attendance", tint = Color.Black)
-                    Text(text = "رصد حضور العمال اليومي", fontSize = 11.sp, color = Color.Black, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                    Text(
+                        text = "رصد حضور العمال اليومي",
+                        fontSize = 12.sp,
+                        color = Color.Black,
+                        fontWeight = FontWeight.Black,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
 
@@ -814,13 +996,22 @@ fun DashboardView(
                 onClick = onAddSiteClick,
                 modifier = Modifier
                     .weight(1f)
-                    .height(64.dp),
+                    .height(60.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(imageVector = Icons.Default.LocationOn, contentDescription = "Add site")
-                    Text(text = "تأسيس موقع عمل جديد", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(imageVector = Icons.Default.LocationOn, contentDescription = "Add site", tint = Color.White)
+                    Text(
+                        text = "تأسيس موقع عمل جديد",
+                        fontSize = 12.sp,
+                        color = Color.White,
+                        fontWeight = FontWeight.Black,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }
@@ -869,16 +1060,16 @@ fun DashboardStatsCard(
     iconColor: Color = MaterialTheme.colorScheme.primary
 ) {
     Card(
-        modifier = modifier.height(115.dp),
+        modifier = modifier.height(125.dp),
         colors = CardDefaults.cardColors(containerColor = color),
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp),
+                .padding(14.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Row(
@@ -886,37 +1077,53 @@ fun DashboardStatsCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (icon != null) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = iconColor,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
                 Text(
                     text = title,
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Gray,
+                    textAlign = TextAlign.Start
+                )
+                if (icon != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .background(
+                                color = iconColor.copy(alpha = 0.1f),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = iconColor,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+            
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.End
+            ) {
+                Text(
+                    text = value,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = textColor,
+                    lineHeight = 26.sp
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    fontSize = 10.sp,
+                    color = Color.Gray,
+                    lineHeight = 12.sp,
                     textAlign = TextAlign.End
                 )
             }
-            Text(
-                text = value,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Black,
-                color = textColor,
-                modifier = Modifier.align(Alignment.End)
-            )
-            Text(
-                text = subtitle,
-                fontSize = 9.sp,
-                color = Color.Gray,
-                lineHeight = 11.sp,
-                textAlign = TextAlign.End,
-                modifier = Modifier.align(Alignment.End)
-            )
         }
     }
 }
@@ -944,44 +1151,44 @@ fun AttendanceView(
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
-        // Attendance Date Banner + Live Indicator Row
-        Row(
+        // Attendance Date Banner + Live Indicator Row (Centered matching Image 13.html)
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Column {
-                Text(
-                    text = "دفتر الحضور والأجور اليومي",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "المسجلين اليوم: ${stateList.count { it.attendance != null }} من إجمالي ${stateList.size} عمال",
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
-            }
-
-            // Quick auto-saving indicator light
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFFE8F5E9))
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                contentAlignment = Alignment.Center
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(Color(0xFF2E7D32)))
-                    Text(text = "حفظ فوري آمن", fontSize = 10.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
-                }
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(AccentTeal)
+                )
+                Text(
+                    text = "حفظ فوري آمن",
+                    fontSize = 11.sp,
+                    color = AccentTeal,
+                    fontWeight = FontWeight.ExtraBold
+                )
             }
+            Text(
+                text = "دفتر الحضور والأجور اليومي",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "المسجلين اليوم: ${stateList.count { it.attendance != null }} من إجمالي ${stateList.size} عمال",
+                fontSize = 13.sp,
+                color = Color.Gray,
+                fontWeight = FontWeight.Bold
+            )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Search + Site Filter Row
         Row(
@@ -991,14 +1198,16 @@ fun AttendanceView(
             OutlinedTextField(
                 value = search,
                 onValueChange = { viewModel.searchQuery.value = it },
-                placeholder = { Text("البحث باسم عامل بناء...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search icon") },
+                placeholder = { Text("البحث باسم عامل بناء...", fontSize = 12.sp) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search icon", tint = Color.Gray) },
                 modifier = Modifier.weight(1f),
                 singleLine = true,
-                colors = TextFieldDefaults.colors(
-                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
                     unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                    focusedContainerColor = MaterialTheme.colorScheme.surface
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
                 )
             )
 
@@ -1007,8 +1216,12 @@ fun AttendanceView(
                 Button(
                     onClick = { showSiteFilterDropdown = true },
                     modifier = Modifier.height(56.dp),
-                    shape = RoundedCornerShape(4.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
+                        contentColor = MaterialTheme.colorScheme.secondary
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f))
                 ) {
                     Icon(imageVector = Icons.Default.LocationOn, contentDescription = "Site filter")
                     Spacer(modifier = Modifier.width(4.dp))
@@ -1043,7 +1256,7 @@ fun AttendanceView(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Attendance Worker LazyList
         if (stateList.isEmpty()) {
@@ -1065,7 +1278,8 @@ fun AttendanceView(
                         text = "لا يوجد عمال متاحين للموقع المحدد.\nأضف عمالاً في تبويب العمال أولاً!",
                         textAlign = TextAlign.Center,
                         color = Color.Gray,
-                        fontSize = 14.sp
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
@@ -1085,7 +1299,6 @@ fun AttendanceView(
                         onQuickOvertimeClick = { onQuickOvertimeClick(state.worker) },
                         onWorkerDetailClick = { onWorkerDetailClick(state.worker.id) },
                         onAddNoteVal = { text ->
-                            // Update attendance object notes instantly
                             val currentAtt = state.attendance
                             if (currentAtt != null) {
                                 viewModel.setAttendanceStatus(state.worker.id, currentAtt.status)
@@ -1121,186 +1334,246 @@ fun AttendanceWorkerItemCard(
     val netWage = (baseWage + overWage) - advance - deduction
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(
-                width = 2.dp,
-                color = if (isPresent) Color(0xFF2E7D32).copy(alpha = 0.5f)
-                else if (logged && att.status == "absent") Color(0xFFC62828).copy(alpha = 0.3f)
-                else Color.Transparent,
-                shape = RoundedCornerShape(12.dp)
-            ),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = if (isPresent) Color(0xFFE8F5E9).copy(alpha = 0.4f)
-            else if (logged && att.status == "absent") Color(0xFFFFEBEE).copy(alpha = 0.4f)
+            containerColor = if (isPresent) AccentTeal.copy(alpha = 0.04f)
+            else if (logged && att.status == "absent") AbsentRed.copy(alpha = 0.04f)
             else MaterialTheme.colorScheme.surface
         ),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (isPresent) AccentTeal.copy(alpha = 0.25f)
+            else if (logged && att.status == "absent") AbsentRed.copy(alpha = 0.25f)
+            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp)
+            modifier = Modifier.padding(14.dp)
         ) {
-            // Worker core credentials row
+            // Worker core credentials row (RTL order matching Image 13.html)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Name & phone details
+                // STATUS TOGGLE BUTTON (Large Touch Target on the Right in RTL)
+                Button(
+                    onClick = onToggleStatus,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isPresent) AccentTeal
+                        else if (logged && att.status == "absent") AbsentRed
+                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                        contentColor = if (isPresent || (logged && att.status == "absent")) Color.White else MaterialTheme.colorScheme.onSurface
+                    ),
+                    modifier = Modifier
+                        .height(38.dp)
+                        .widthIn(min = 115.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val statusText = if (isPresent) "حاضر" else if (logged && att.status == "absent") "غائب" else "غير مسجل"
+                        val dotColor = if (isPresent) Color(0xFF10B981) else if (logged && att.status == "absent") Color(0xFFEF4444) else Color.Gray
+
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(if (isPresent || (logged && att.status == "absent")) Color.White else dotColor)
+                        )
+                        Text(
+                            text = statusText,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+                }
+
+                // Name & phone details (Left aligned on the Left in RTL)
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .clickable { onWorkerDetailClick() }
+                        .clickable { onWorkerDetailClick() },
+                    horizontalAlignment = Alignment.End
                 ) {
                     Text(
                         text = state.worker.fullName,
-                        fontSize = 16.sp,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "السعر اليومي: ${state.worker.dailySalary} ج.م",
-                            fontSize = 12.sp,
-                            color = Color.Gray
+                            text = "السعر اليومي: ${state.worker.dailySalary.toInt()} ج.م",
+                            fontSize = 11.sp,
+                            color = Color.Gray,
+                            fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "سعر الإضافي: ${state.worker.overtimeHourRate} ج.م",
-                            fontSize = 12.sp,
-                            color = Color.Gray
+                            text = "سعر الإضافي: ${state.worker.overtimeHourRate.toInt()} ج.م",
+                            fontSize = 11.sp,
+                            color = Color.Gray,
+                            fontWeight = FontWeight.Bold
                         )
                     }
-                }
-
-                // STATUS TOGGLE BUTTON (Large Touch Target!)
-                Button(
-                    onClick = onToggleStatus,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isPresent) Color(0xFF2E7D32)
-                        else if (logged && att.status == "absent") Color(0xFFC62828)
-                        else Color.LightGray
-                    ),
-                    modifier = Modifier
-                        .height(48.dp)
-                        .widthIn(min = 100.dp),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = if (isPresent) "حاضر بالعمل" else if (logged && att.status == "absent") "غائب ومستبعد" else "غير مسجل (انقر هنا)",
-                        fontSize = 12.sp,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // Overtime & Financials Panel (renders ONLY if present with smooth AnimatedVisibility!)
+            AnimatedVisibility(
+                visible = isPresent,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column {
+                    Spacer(modifier = Modifier.height(12.dp))
 
-            // Overtime & Financials Panel (renders ONLY if present!)
-            if (isPresent) {
-                Divider(color = Color.LightGray.copy(alpha = 0.5f))
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Overtime controls (+ and - triggers)
-                    Column {
-                        Text(text = "ساعات العمل الإضافية اليوم", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.padding(top = 4.dp)
-                        ) {
-                            Button(
-                                onClick = { onOvertimeDelta(-0.5) },
-                                contentPadding = PaddingValues(0.dp),
-                                modifier = Modifier.size(36.dp),
-                                shape = CircleShape,
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                            ) {
-                                Text("-", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                            }
-
-                            Text(
-                                text = "$overHours س",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp)
-                            )
-
-                            Button(
-                                onClick = { onOvertimeDelta(0.5) },
-                                contentPadding = PaddingValues(0.dp),
-                                modifier = Modifier.size(36.dp),
-                                shape = CircleShape,
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                            ) {
-                                Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-
-                    // Advances & Deductibles trigger action launchers
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Column 1: Draft Overtime
                         Button(
-                            onClick = onQuickAdvanceClick,
-                            colors = ButtonDefaults.buttonColors(containerColor = ConstructionSafetyYellow),
-                            modifier = Modifier.height(44.dp),
-                            shape = RoundedCornerShape(8.dp)
+                            onClick = onQuickOvertimeClick,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
+                                contentColor = MaterialTheme.colorScheme.secondary
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(46.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(text = "سجل سُلفة", fontSize = 11.sp, color = Color.Black, fontWeight = FontWeight.Bold)
-                                if (advance > 0.0) {
-                                    Text(text = "$advance ج", fontSize = 10.sp, color = Color.Black)
+                                Text(text = "مسودة إضافي", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, lineHeight = 13.sp)
+                                if (overWage > 0.0) {
+                                    Text(text = "$overWage ج.م", fontSize = 9.sp, fontWeight = FontWeight.Black)
                                 }
                             }
                         }
 
+                        // Column 2: Record Advance
                         Button(
-                            onClick = onQuickOvertimeClick, // can use same modifier or deduction
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                            modifier = Modifier.height(44.dp),
-                            shape = RoundedCornerShape(8.dp)
+                            onClick = onQuickAdvanceClick,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = ConstructionSafetyYellow.copy(alpha = 0.15f),
+                                contentColor = Color(0xFFD97706)
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(46.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, ConstructionSafetyYellow.copy(alpha = 0.3f)),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(text = "مسودة إضافي", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                Text(text = "$overWage ج.م", fontSize = 9.sp)
+                                Text(text = "سجل سلفة", fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, lineHeight = 13.sp)
+                                if (advance > 0.0) {
+                                    Text(text = "$advance ج.م", fontSize = 9.sp, fontWeight = FontWeight.Black)
+                                }
+                            }
+                        }
+
+                        // Column 3: Overtime Controls (- / +)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.weight(1.2f)
+                        ) {
+                            Text(
+                                text = "ساعات الإضافي اليوم", 
+                                fontSize = 9.sp, 
+                                color = Color.Gray,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                IconButton(
+                                    onClick = { onOvertimeDelta(-0.5) },
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .background(
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                                            shape = CircleShape
+                                        )
+                                ) {
+                                    Text("-", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                                }
+
+                                Text(
+                                    text = "$overHours س",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.padding(horizontal = 2.dp)
+                                )
+
+                                IconButton(
+                                    onClick = { onOvertimeDelta(0.5) },
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .background(
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                                            shape = CircleShape
+                                        )
+                                ) {
+                                    Text("+", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                                }
                             }
                         }
                     }
-                }
-            }
 
-            // Quick Live Balance calculation preview bar!
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Color.Black.copy(alpha = 0.05f))
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "معاينة الحساب الفوري لليوم",
-                    fontSize = 11.sp,
-                    color = Color.DarkGray
-                )
-                Text(
-                    text = "صافي اليوم: $netWage ج.م",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (netWage >= 0.0) Color(0xFF1B5E20) else Color(0xFFB71C1C)
-                )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f), thickness = 1.dp)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Quick Live Balance calculation preview bar!
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "صافي اليومية: $netWage ج.م",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = AccentTeal
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            modifier = Modifier.clickable { onWorkerDetailClick() }
+                        ) {
+                            Text(
+                                text = "تفاصيل الحساب اليومي",
+                                fontSize = 10.sp,
+                                color = Color.Gray,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = null,
+                                tint = Color.Gray,
+                                modifier = Modifier.size(10.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -1313,7 +1586,8 @@ fun WorkersView(
     viewModel: LaborViewModel,
     selectedWorkerId: Int?,
     onBackToWorkersList: () -> Unit,
-    onImportClick: () -> Unit
+    onImportClick: () -> Unit,
+    onMultiImportClick: () -> Unit
 ) {
     val workers by viewModel.allWorkers.collectAsStateWithLifecycle()
     val attendanceLogs by viewModel.allAttendance.collectAsStateWithLifecycle()
@@ -1372,9 +1646,9 @@ fun WorkersView(
                 modifier = Modifier
                     .width(135.dp)
                     .height(95.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f)),
+                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
@@ -1401,9 +1675,9 @@ fun WorkersView(
                 modifier = Modifier
                     .width(135.dp)
                     .height(95.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f)),
+                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
@@ -1430,9 +1704,9 @@ fun WorkersView(
                 modifier = Modifier
                     .width(135.dp)
                     .height(95.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f)),
+                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
@@ -1461,9 +1735,9 @@ fun WorkersView(
                     .width(160.dp)
                     .height(95.dp)
                     .clickable { showSiteDropdownFilter = true },
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.5.dp, Color(0xFFE1BEE7)),
+                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Box {
@@ -1478,8 +1752,8 @@ fun WorkersView(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "الموقع الحالي", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6A1B9A))
-                            Icon(imageVector = Icons.Default.Home, contentDescription = null, tint = Color(0xFF8E24AA), modifier = Modifier.size(16.dp))
+                            Text(text = "الموقع الحالي", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                            Icon(imageVector = Icons.Default.Home, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                         }
                         
                         Row(
@@ -1541,11 +1815,12 @@ fun WorkersView(
                 placeholder = { Text("ابحث عن عامل بالإسم أو الهاتف...", fontSize = 12.sp) },
                 singleLine = true,
                 modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Color.White,
-                    focusedBorderColor = Color(0xFF0F2C59)
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
                 ),
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray) }
             )
@@ -1556,10 +1831,11 @@ fun WorkersView(
                 Button(
                     onClick = { showSortDropdown = true },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFE3F2FD),
-                        contentColor = Color(0xFF0D47A1)
+                        containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
+                        contentColor = MaterialTheme.colorScheme.secondary
                     ),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 14.dp),
                     modifier = Modifier.height(56.dp)
                 ) {
@@ -1604,19 +1880,36 @@ fun WorkersView(
                 }
             }
 
-            // Quick Add Worker Button (matching blue button "إضافة عامل +" in the screenshot)
+            // Quick Add Worker Button
             Button(
                 onClick = { showAddDialogLocal = true },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF0F2C59),
+                    containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = Color.White
                 ),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.height(56.dp)
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.height(56.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp)
             ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = "Add")
+                Icon(imageVector = Icons.Default.Add, contentDescription = "Add", modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text(text = "إضافة عامل", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(text = "إضافة", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+
+            // Quick Import Multiple Workers Button
+            Button(
+                onClick = onMultiImportClick,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ConstructionSafetyYellow,
+                    contentColor = Color.Black
+                ),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.height(56.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp)
+            ) {
+                Icon(imageVector = Icons.Default.Phone, contentDescription = "Import Multiple Contacts", modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(text = "استيراد 📱", fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -1659,7 +1952,7 @@ fun WorkersView(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "📝", fontSize = 48.sp)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "لا توجد نتائج بحث مطابقة أو عمال بهذا المشروع.", color = Color.Gray, fontSize = 14.sp)
+                    Text(text = "لا توجد نتائج بحث مطابقة أو عمال بهذا المشروع.", color = Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
             }
         } else {
@@ -1676,15 +1969,15 @@ fun WorkersView(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { detailWorkerId = worker.id },
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.25f)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp)
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
+                                .padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -1745,8 +2038,8 @@ fun WorkersView(
                                 // Status Pill Badge
                                 Surface(
                                     shape = CircleShape,
-                                    color = if (worker.isActive) Color(0xFFE8F5E9) else Color(0xFFFFF3E0),
-                                    border = BorderStroke(1.dp, if (worker.isActive) Color(0xFF81C784) else Color(0xFFFFB74D))
+                                    color = if (worker.isActive) AccentTeal.copy(alpha = 0.1f) else Color(0xFFFFECE0),
+                                    border = BorderStroke(1.dp, if (worker.isActive) AccentTeal.copy(alpha = 0.3f) else Color(0xFFFFB74D))
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -1756,14 +2049,14 @@ fun WorkersView(
                                         Icon(
                                             imageVector = if (worker.isActive) Icons.Default.Check else Icons.Default.Warning,
                                             contentDescription = null,
-                                            tint = if (worker.isActive) Color(0xFF2E7D32) else Color(0xFFEF6C00),
+                                            tint = if (worker.isActive) AccentTeal else Color(0xFFEF6C00),
                                             modifier = Modifier.size(12.dp)
                                         )
                                         Text(
                                             text = if (worker.isActive) "نشط" else "متوقف",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = if (worker.isActive) Color(0xFF2E7D32) else Color(0xFFEF6C00)
+                                            color = if (worker.isActive) AccentTeal else Color(0xFFEF6C00)
                                         )
                                     }
                                 }
@@ -1776,7 +2069,7 @@ fun WorkersView(
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(text = "اليومية", fontSize = 10.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
-                                    Text(text = "${worker.dailySalary.toInt()}", fontSize = 15.sp, fontWeight = FontWeight.Black, color = Color(0xFF1B98E0))
+                                    Text(text = "${worker.dailySalary.toInt()}", fontSize = 15.sp, fontWeight = FontWeight.Black, color = ConstructionAccent)
                                 }
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(text = "أوفر تايم/ساعة", fontSize = 10.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
@@ -1794,7 +2087,7 @@ fun WorkersView(
                                         text = worker.fullName,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F2C59)
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -1816,7 +2109,7 @@ fun WorkersView(
 
                                 // Profile Picture Avatar with Status Indicator Dot
                                 Box(modifier = Modifier.size(54.dp)) {
-                                    val colors = listOf(Color(0xFFFFEE58), Color(0xFF29B6F6), Color(0xFFFFA726), Color(0xFF66BB6A), Color(0xFFAB47BC))
+                                    val colors = listOf(Color(0xFFFEF08A), Color(0xFFBAE6FD), Color(0xFFFED7AA), Color(0xFFA7F3D0), Color(0xFFE9D5FF))
                                     val bg = colors[(worker.id and 0x7FFFFFFF) % colors.size]
 
                                     Box(
@@ -1835,7 +2128,6 @@ fun WorkersView(
                                                 modifier = Modifier.fillMaxSize()
                                             )
                                         } else {
-                                            // Predefined helmets or constructor character representation
                                             val emoji = when ((worker.id and 0x7FFFFFFF) % 4) {
                                                 0 -> "👷"
                                                 1 -> "👷‍♂️"
@@ -1859,7 +2151,7 @@ fun WorkersView(
                                                 .fillMaxSize()
                                                 .padding(2.dp)
                                                 .clip(CircleShape)
-                                                .background(if (worker.isActive) Color(0xFF4CAF50) else Color(0xFFFF9800))
+                                                .background(if (worker.isActive) AccentTeal else ConstructionSafetyYellow)
                                         )
                                     }
                                 }
@@ -2395,7 +2687,6 @@ fun WorkerDetailSubScreen(
 @Composable
 fun SitesView(viewModel: LaborViewModel, onAddSiteClick: () -> Unit) {
     val sites by viewModel.allSites.collectAsStateWithLifecycle()
-    val workers by viewModel.allWorkers.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
@@ -2408,21 +2699,30 @@ fun SitesView(viewModel: LaborViewModel, onAddSiteClick: () -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Button(
+                onClick = onAddSiteClick, 
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ConstructionSafetyYellow,
+                    contentColor = Color.Black
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text(text = "+ موقع جديد", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+
+            Column(horizontalAlignment = Alignment.End) {
                 Text(
                     text = "مواقع البناء والعمل المفتوحة",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = "عدد مواقع البناء النشطة: ${sites.size}",
                     color = Color.Gray,
-                    fontSize = 12.sp
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
                 )
-            }
-
-            Button(onClick = onAddSiteClick, colors = ButtonDefaults.buttonColors(containerColor = ConstructionSafetyYellow)) {
-                Text(text = "+ موقع جديد", color = Color.Black)
             }
         }
 
@@ -2430,30 +2730,40 @@ fun SitesView(viewModel: LaborViewModel, onAddSiteClick: () -> Unit) {
 
         if (sites.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = "لم يتم تسجيل أي مواقع عمل بعد.\nاضغط على موقع جديد لتوزيع البناء والعمالة!", textAlign = TextAlign.Center, color = Color.Gray)
+                Text(
+                    text = "لم يتم تسجيل أي مواقع عمل بعد.\nاضغط على موقع جديد لتوزيع البناء والعمالة!",
+                    textAlign = TextAlign.Center,
+                    color = Color.Gray,
+                    fontWeight = FontWeight.Bold
+                )
             }
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(sites, key = { it.id }) { site ->
+                items(sites, key = { site -> site.id }) { site ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                     ) {
-                        Column(modifier = Modifier.padding(20.dp)) {
+                        Column(modifier = Modifier.padding(16.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 IconButton(onClick = { viewModel.deleteSite(site.id) }) {
-                                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFEF4444))
+                                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = AbsentRed)
                                 }
-                                Text(text = site.name, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color(0xFF1F2937))
+                                Text(
+                                    text = site.name,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(
@@ -2461,8 +2771,9 @@ fun SitesView(viewModel: LaborViewModel, onAddSiteClick: () -> Unit) {
                                 horizontalArrangement = Arrangement.End,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(text = site.location.ifEmpty { "غير محدد" }, fontSize = 14.sp, color = Color(0xFF4B5563))
-                                Text(text = "الموقع: ", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1F2937))
+                                Text(text = site.location.ifEmpty { "غير محدد" }, fontSize = 13.sp, color = Color.Gray)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(text = "الموقع:", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Row(
@@ -2470,8 +2781,9 @@ fun SitesView(viewModel: LaborViewModel, onAddSiteClick: () -> Unit) {
                                 horizontalArrangement = Arrangement.End,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(text = site.notes.ifEmpty { "بلا ملاحظات" }, fontSize = 14.sp, color = Color(0xFF4B5563))
-                                Text(text = "ملاحظات: ", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1F2937))
+                                Text(text = site.notes.ifEmpty { "بلا ملاحظات" }, fontSize = 13.sp, color = Color.Gray)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(text = "ملاحظات:", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
                             }
                         }
                     }
@@ -2504,107 +2816,113 @@ fun ReportsView(viewModel: LaborViewModel) {
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
-        Text(
-            text = "التقارير المالية وإحصائيات العمل",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = "لوحة تقدير المصروفات التراكمية وسحب الرواتب للورش والمواقع",
-            fontSize = 12.sp,
-            color = Color.Gray,
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = "التقارير المالية وإحصائيات العمل",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "لوحة تقدير المصروفات التراكمية وسحب الرواتب للورش والمواقع",
+                fontSize = 12.sp,
+                color = Color.Gray,
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.Bold
+            )
+        }
 
+        // Beautiful Gradient Metrics Banner
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)
+            shape = RoundedCornerShape(20.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary,
+                                Color(0xFF0F172A)
+                            )
+                        )
+                    )
+                    .padding(20.dp)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "إجمالي مستحقات العمال التراكمية", color = Color.White, fontSize = 14.sp)
-                    Text(text = "عدد العمال المقيدين: $totalWorkers", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White.copy(alpha = 0.1f))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "عدد العمال المقيدين: $totalWorkers",
+                            color = Color.White.copy(alpha = 0.9f),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                    Text(
+                        text = "إجمالي مستحقات العمال التراكمية",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "$totalSalaryToPay ج.م",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 32.sp,
+                        color = ConstructionSafetyYellow
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "$totalSalaryToPay ج.م",
-                    fontWeight = FontWeight.Black,
-                    fontSize = 24.sp,
-                    color = ConstructionSafetyYellow
-                )
-                Text(
-                    text = "شامل الأجر اليومي والعمل الإضافي مخصوماً منه المسلفات المدفوعة مسبقاً",
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 11.sp
+                    text = "شامل الأجر اليومي والعمل الإضافي مخصوماً منه السلفيات المدفوعة مسبقاً",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 10.sp,
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         // Direct File Export Triggers
         Text(
             text = "تصدير وطباعة المستندات المعتمدة",
             fontSize = 14.sp,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
         )
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             val onSharePdfText = {
-                val sb = StringBuilder()
-                sb.append("📊 *تقرير مستحقات ورواتب العمال المالي*\n")
-                sb.append("-----------------------------\n")
-                sb.append("📅 تاريخ التقرير: ${SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())}\n")
-                sb.append("👥 إجمالي عدد العمال: ${workers.size}\n")
-                sb.append("💵 إجمالي المبالغ المستحقة: $totalSalaryToPay ج.م\n")
-                sb.append("-----------------------------\n\n")
-                
-                workers.forEach { worker ->
-                    val workerAtts = allAttendance.filter { it.workerId == worker.id }
-                    val presentAtts = workerAtts.filter { it.status == "present" }
-                    
-                    val daysCount = presentAtts.size
-                    val totalBase = presentAtts.size * worker.dailySalary
-                    val totalOvertimePay = presentAtts.sumOf { it.overtimeHours * worker.overtimeHourRate }
-                    val totalAdvance = workerAtts.sumOf { it.advanceAmount }
-                    val totalDeduction = workerAtts.sumOf { it.deductionAmount }
-                    val net = totalBase + totalOvertimePay - totalAdvance - totalDeduction
-                    
-                    sb.append("👤 *${worker.fullName}*\n")
-                    if (worker.phone.isNotEmpty()) sb.append("📱 الهاتف: ${worker.phone}\n")
-                    sb.append("  • الحضور اليومي: $daysCount يوم (${worker.dailySalary} ج.م/يوم)\n")
-                    if (totalOvertimePay > 0) {
-                        val hours = presentAtts.sumOf { it.overtimeHours }
-                        sb.append("  • الساعات الإضافية: $hours ساعة ($totalOvertimePay ج.م)\n")
-                    }
-                    if (totalAdvance > 0) sb.append("  • إجمالي السلف والمسحوبات: $totalAdvance ج.م\n")
-                    if (totalDeduction > 0) sb.append("  • إجمالي الخصومات للتأخير: $totalDeduction ج.م\n")
-                    sb.append("  • *الصافي المستحق حالياً*: $net ج.م\n")
-                    sb.append("---------------------\n")
-                }
-                
-                try {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(android.content.Intent.EXTRA_SUBJECT, "تقرير رواتب العمال واليوميات")
-                        putExtra(android.content.Intent.EXTRA_TEXT, sb.toString())
-                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    val chooser = android.content.Intent.createChooser(intent, "مشاركة تقرير الرواتب والتسليم").apply {
-                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    context.startActivity(chooser)
-                } catch (e: Exception) {
-                    Toast.makeText(context, "فشل تصدير التقرير: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
+                exportReportsToPdf(context, workers, allAttendance)
             }
 
             val onShareExcelCsv = {
@@ -2653,11 +2971,16 @@ fun ReportsView(viewModel: LaborViewModel) {
                 modifier = Modifier
                     .weight(1f)
                     .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
+                    contentColor = MaterialTheme.colorScheme.secondary
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f))
             ) {
                 Icon(imageVector = Icons.Default.Share, contentDescription = "PDF")
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(text = "مشاركة تقرير 📝")
+                Text(text = "مشاركة تقرير 📝", fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
 
             Button(
@@ -2665,11 +2988,16 @@ fun ReportsView(viewModel: LaborViewModel) {
                 modifier = Modifier
                     .weight(1f)
                     .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E7145))
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AccentTeal.copy(alpha = 0.1f),
+                    contentColor = AccentTeal
+                ),
+                border = BorderStroke(1.dp, AccentTeal.copy(alpha = 0.2f))
             ) {
                 Icon(imageVector = Icons.Default.Share, contentDescription = "Excel")
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(text = "شيت Excel 📊")
+                Text(text = "شيت Excel 📊", fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -2679,47 +3007,57 @@ fun ReportsView(viewModel: LaborViewModel) {
             text = "معاينة الجدول الرقمي السريع للرواتب والأجر",
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 6.dp)
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(bottom = 8.dp)
         )
 
-        LazyColumn(
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
+                .weight(1f),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
-            item {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Table Header (Navy/Slate Background)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(MaterialTheme.colorScheme.primary)
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(text = "اسم العامل", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.5f))
-                    Text(text = "الأيام", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.8f))
-                    Text(text = "صافي", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                }
-            }
-
-            items(workers) { worker ->
-                val stats = allAttendance.filter { it.workerId == worker.id }
-                val presentDays = stats.count { it.status == "present" }
-                val advances = stats.sumOf { it.advanceAmount }
-                val otPay = stats.sumOf { it.overtimeHours * worker.overtimeHourRate }
-                val base = presentDays * worker.dailySalary
-                val net = base + otPay - advances
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp)
-                        .border(width = 0.5.dp, color = Color.LightGray.copy(alpha = 0.4f)),
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = worker.fullName, fontSize = 13.sp, maxLines = 1, modifier = Modifier.weight(1.5f))
-                    Text(text = "$presentDays أيام", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.weight(0.8f))
-                    Text(text = "$net ج.م", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+                    Text(text = "صافي", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Black, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+                    Text(text = "الأيام", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Black, modifier = Modifier.weight(0.8f), textAlign = TextAlign.Center)
+                    Text(text = "اسم العامل", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Black, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Start)
+                }
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(workers) { worker ->
+                        val stats = allAttendance.filter { it.workerId == worker.id }
+                        val presentDays = stats.count { it.status == "present" }
+                        val advances = stats.sumOf { it.advanceAmount }
+                        val otPay = stats.sumOf { it.overtimeHours * worker.overtimeHourRate }
+                        val base = presentDays * worker.dailySalary
+                        val net = base + otPay - advances
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "$net ج.م", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+                            Text(text = "$presentDays أيام", fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.8f), textAlign = TextAlign.Center)
+                            Text(text = worker.fullName, fontSize = 13.sp, maxLines = 1, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1.5f), textAlign = TextAlign.Start)
+                        }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f), thickness = 1.dp)
+                    }
                 }
             }
         }
@@ -2740,30 +3078,44 @@ fun SettingsView(viewModel: LaborViewModel) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
+            .verticalScroll(rememberScrollState())
     ) {
         Text(
             text = "إعدادات النظام والخصوصية",
             fontSize = 18.sp,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Black,
+            color = MaterialTheme.colorScheme.onSurface
         )
         Text(
             text = "تخصيص مستويات الأمان ومظهر البناء والخطوط والتحكم بالنظام",
             fontSize = 12.sp,
             color = Color.Gray,
+            fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
         // Security Options (Lock App PIN)
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
-                Text(text = "حماية التطبيق برمز PIN أمني", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1F2937))
+                Text(
+                    text = "حماية التطبيق برمز PIN أمني",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(text = "تفعيل قفل التطبيق بـ 4 أرقام لحماية سجلات الأجور والرواتب والعمال من المتطفلين أو الفقدان أثناء العمل بالمواقع والإنشاءات.", fontSize = 12.sp, color = Color.Gray, lineHeight = 16.sp)
+                Text(
+                    text = "تفعيل قفل التطبيق بـ 4 أرقام لحماية سجلات الأجور والرواتب والعمال من المتطفلين أو الفقدان أثناء العمل بالمواقع والإنشاءات.",
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    lineHeight = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -2778,7 +3130,12 @@ fun SettingsView(viewModel: LaborViewModel) {
                             viewModel.updatePinSetting(enabled, editPinValue)
                         }
                     )
-                    Text(text = "تمكين القفل الأمني PIN:", fontWeight = FontWeight.Bold, color = Color(0xFF1F2937), fontSize = 14.sp)
+                    Text(
+                        text = "تمكين القفل الأمني PIN:",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 14.sp
+                    )
                 }
 
                 if (settings.pinEnabled) {
@@ -2794,6 +3151,7 @@ fun SettingsView(viewModel: LaborViewModel) {
                         label = { Text("أدخل الأرقام السرية الـ 4") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -2805,8 +3163,8 @@ fun SettingsView(viewModel: LaborViewModel) {
         // Appearance config (Light/Dark themes)
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Row(
@@ -2821,8 +3179,20 @@ fun SettingsView(viewModel: LaborViewModel) {
                     onCheckedChange = { viewModel.updateDarkModeSetting(it) }
                 )
                 Column(modifier = Modifier.weight(1f).padding(start = 12.dp), horizontalAlignment = Alignment.End) {
-                    Text(text = "الوضع الداكن (مظهر الليل)", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1F2937))
-                    Text(text = "تحويل ألوان التطبيق لدرجات داكنة ومريحة للعين في ظروف الإضاءة الضعيفة والمواقع المغلقة.", fontSize = 12.sp, color = Color.Gray, lineHeight = 16.sp, textAlign = TextAlign.End)
+                    Text(
+                        text = "الوضع الداكن (مظهر الليل)",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "تحويل ألوان التطبيق لدرجات داكنة ومريحة للعين في ظروف الإضاءة الضعيفة والمواقع المغلقة.",
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                        lineHeight = 16.sp,
+                        textAlign = TextAlign.End,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }
@@ -2832,17 +3202,23 @@ fun SettingsView(viewModel: LaborViewModel) {
         // Font size custom scale configuration
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
-                Text(text = "تعديل وملاءمة حجم خط نصوص التطبيق", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1F2937))
+                Text(
+                    text = "تعديل وملاءمة حجم خط نصوص التطبيق",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
                 Text(
                     text = "اختر الحجم الأنسب لقراءة وتدقيق قائمة حضور عمال المقاولة والأجور بوضوح تام.",
                     fontSize = 12.sp,
                     color = Color.Gray,
-                    lineHeight = 16.sp
+                    lineHeight = 16.sp,
+                    fontWeight = FontWeight.Medium
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -2863,8 +3239,8 @@ fun SettingsView(viewModel: LaborViewModel) {
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFFDBEAFE),
-                                contentColor = if (isSelected) Color.White else Color(0xFF1E3A8A)
+                                containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
+                                contentColor = if (isSelected) Color.White else MaterialTheme.colorScheme.secondary
                             ),
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
                         ) {
@@ -2883,13 +3259,24 @@ fun SettingsView(viewModel: LaborViewModel) {
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
-                Text(text = "النسخ الاحتياطي واستعادة البيانات", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1F2937))
-                Text(text = "بما أن التطبيق يعمل بالكامل دون إنترنت، يمكنك سحب نسخة احتياطية مشفرة نصياً وحفظها بأمان، أو استعادتها في أي وقت.", fontSize = 12.sp, color = Color.Gray, lineHeight = 16.sp)
+                Text(
+                    text = "النسخ الاحتياطي واستعادة البيانات",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "بما أن التطبيق يعمل بالكامل دون إنترنت، يمكنك سحب نسخة احتياطية مشفرة نصياً وحفظها بأمان، أو استعادتها في أي وقت.",
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    lineHeight = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -2921,9 +3308,41 @@ fun SettingsView(viewModel: LaborViewModel) {
                         onClick = { showImportDialog = true },
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
+                            contentColor = MaterialTheme.colorScheme.secondary
+                        ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f))
                     ) {
                         Text(text = "استيراد نسخة سابقة", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Button(
+                    onClick = {
+                        viewModel.exportBackup { jsonStr ->
+                            if (jsonStr != null) {
+                                exportBackupToGoogleDrive(context, jsonStr)
+                            } else {
+                                Toast.makeText(context, "فشل تجهيز المزامنة!", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ConstructionSafetyYellow,
+                        contentColor = Color.Black
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(imageVector = Icons.Default.Cloud, contentDescription = "Google Drive Sync", modifier = Modifier.size(18.dp), tint = Color.Black)
+                        Text(text = "مزامنة ورفع احتياطي على Google Drive 💾", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -2941,9 +3360,9 @@ fun SettingsView(viewModel: LaborViewModel) {
                         modifier = Modifier.padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(text = "استعادة البيانات", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(text = "استعادة البيانات", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = "قم بلصق نص النسخة الاحتياطية الذي قمت بنسخه مسبقاً هنا لاستعادة كافة عمال ومواقع وحضور الورشة.", fontSize = 11.sp, color = Color.Gray, textAlign = TextAlign.Center)
+                        Text(text = "قم بلصق نص النسخة الاحتياطية الذي قمت بنسخه مسبقاً هنا لاستعادة كافة عمال ومواقع وحضور الورشة.", fontSize = 11.sp, color = Color.Gray, textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
                         
                         Spacer(modifier = Modifier.height(12.dp))
 
@@ -2954,7 +3373,8 @@ fun SettingsView(viewModel: LaborViewModel) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(150.dp),
-                            maxLines = 10
+                            maxLines = 10,
+                            shape = RoundedCornerShape(12.dp)
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -2977,9 +3397,10 @@ fun SettingsView(viewModel: LaborViewModel) {
                                         Toast.makeText(context, "الرجاء لصق نص النسخة الاحتياطية أولاً!", Toast.LENGTH_SHORT).show()
                                     }
                                 },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text("استعادة", fontSize = 11.sp)
+                                Text("استعادة", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
 
                             Button(
@@ -2988,9 +3409,10 @@ fun SettingsView(viewModel: LaborViewModel) {
                                     pasteBackupText = ""
                                 },
                                 modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                                shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text("إلغاء", fontSize = 11.sp)
+                                Text("إلغاء", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -3354,3 +3776,462 @@ fun QuickOvertimeDialog(
         }
     )
 }
+
+@Composable
+fun MultiContactImportDialog(
+    viewModel: LaborViewModel,
+    onDismiss: () -> Unit,
+    onImportCompleted: (count: Int) -> Unit
+) {
+    val contacts by viewModel.phoneContactsState.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoadingContacts.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    var unifiedSalary by remember { mutableStateOf("150") }
+    var unifiedRate by remember { mutableStateOf("20") }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val selectedPhones = remember { mutableStateMapOf<String, Boolean>() }
+
+    val filteredContacts = remember(contacts, searchQuery) {
+        if (searchQuery.trim().isEmpty()) {
+            contacts
+        } else {
+            contacts.filter {
+                it.name.contains(searchQuery, ignoreCase = true) ||
+                it.phone.contains(searchQuery)
+            }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "استيراد عمال متعددين 📱",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Right
+                )
+                Text(
+                    text = "اختر العمال من جهات الاتصال وحدد الأجر الموحد",
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Right
+                )
+            }
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = unifiedRate,
+                        onValueChange = { unifiedRate = it },
+                        label = { Text("ساعة الإضافي الموحد") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                        )
+                    )
+
+                    OutlinedTextField(
+                        value = unifiedSalary,
+                        onValueChange = { unifiedSalary = it },
+                        label = { Text("اليومية الموحدة (ج.م)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                        )
+                    )
+                }
+
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("ابحث في الأسماء أو الأرقام...", fontSize = 12.sp) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search Contacts") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                    )
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
+                        onClick = {
+                            filteredContacts.forEach {
+                                selectedPhones[it.phone] = false
+                            }
+                        }
+                    ) {
+                        Text("إلغاء تحديد الكل", color = AbsentRed, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+
+                    TextButton(
+                        onClick = {
+                            filteredContacts.forEach {
+                                selectedPhones[it.phone] = true
+                            }
+                        }
+                    ) {
+                        Text("تحديد الكل المصفى", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(250.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                ) {
+                    if (isLoading) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = ConstructionSafetyYellow)
+                        }
+                    } else if (contacts.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "لم يتم العثور على جهات اتصال.\nتأكد من وجود جهات اتصال بالهاتف.",
+                                textAlign = TextAlign.Center,
+                                color = Color.Gray,
+                                fontSize = 13.sp
+                            )
+                        }
+                    } else if (filteredContacts.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "لا توجد نتائج بحث مطابقة",
+                                color = Color.Gray,
+                                fontSize = 13.sp
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            items(filteredContacts) { contact ->
+                                val isSelected = selectedPhones[contact.phone] ?: false
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(
+                                            if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                                            else Color.Transparent
+                                        )
+                                        .clickable {
+                                            selectedPhones[contact.phone] = !isSelected
+                                        }
+                                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Checkbox(
+                                        checked = isSelected,
+                                        onCheckedChange = { selectedPhones[contact.phone] = it }
+                                    )
+                                    
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.End,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text(
+                                                text = contact.name,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = contact.phone,
+                                                fontSize = 11.sp,
+                                                color = Color.Gray
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            val selectedCount = selectedPhones.values.count { it }
+            Button(
+                onClick = {
+                    val salary = unifiedSalary.toDoubleOrNull() ?: 150.0
+                    val rate = unifiedRate.toDoubleOrNull() ?: 20.0
+                    val toImport = contacts.filter { selectedPhones[it.phone] == true }
+                    if (toImport.isNotEmpty()) {
+                        viewModel.importMultipleWorkers(toImport, salary, rate)
+                        onImportCompleted(toImport.size)
+                    } else {
+                        Toast.makeText(context, "يرجى تحديد جهة اتصال واحدة على الأقل للاستيراد", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                enabled = !isLoading,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ConstructionSafetyYellow,
+                    contentColor = Color.Black
+                )
+            ) {
+                Text(
+                    text = "استيراد المحددين ($selectedCount)",
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("إلغاء", color = Color.Gray)
+            }
+        }
+    )
+}
+
+fun exportReportsToPdf(
+    context: android.content.Context,
+    workers: List<Worker>,
+    allAttendance: List<Attendance>
+) {
+    try {
+        val pdfDocument = android.graphics.pdf.PdfDocument()
+        val pageWidth = 595
+        val pageHeight = 842
+        
+        val paint = android.graphics.Paint()
+        val titlePaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.WHITE
+            textSize = 18f
+            isFakeBoldText = true
+            textAlign = android.graphics.Paint.Align.RIGHT
+        }
+        val subTitlePaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.WHITE
+            textSize = 10f
+            textAlign = android.graphics.Paint.Align.RIGHT
+        }
+        val textPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.BLACK
+            textSize = 10f
+            textAlign = android.graphics.Paint.Align.RIGHT
+        }
+        val boldTextPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.BLACK
+            textSize = 10f
+            isFakeBoldText = true
+            textAlign = android.graphics.Paint.Align.RIGHT
+        }
+        val headerTextPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.WHITE
+            textSize = 11f
+            isFakeBoldText = true
+            textAlign = android.graphics.Paint.Align.RIGHT
+        }
+        
+        val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(pageWidth, pageHeight, 1).create()
+        val page = pdfDocument.startPage(pageInfo)
+        val canvas = page.canvas
+        
+        // Deep Blue Header Banner
+        paint.color = android.graphics.Color.parseColor("#0F2C59")
+        canvas.drawRect(0f, 0f, pageWidth.toFloat(), 110f, paint)
+        
+        // Accent Golden Line
+        paint.color = android.graphics.Color.parseColor("#F59E0B")
+        canvas.drawRect(0f, 110f, pageWidth.toFloat(), 114f, paint)
+        
+        // Title (Arabic)
+        canvas.drawText("مؤسسة المهتدي للمقاولات العامة - El-MOHTADI", pageWidth - 30f, 45f, titlePaint)
+        
+        val dateString = java.text.SimpleDateFormat("yyyy/MM/dd HH:mm", java.util.Locale.US).format(java.util.Date())
+        canvas.drawText("تقرير مستحقات ورواتب العمال المالي التراكمي", pageWidth - 30f, 70f, subTitlePaint)
+        canvas.drawText("تاريخ التصدير: $dateString", pageWidth - 30f, 90f, subTitlePaint)
+        
+        // Totals Summary Box
+        val totalWorkers = workers.size
+        val totalSalaryToPay = allAttendance.filter { it.status == "present" }.sumOf { att ->
+            val wk = workers.find { it.id == att.workerId }
+            val daily = wk?.dailySalary ?: 0.0
+            val over = att.overtimeHours * (wk?.overtimeHourRate ?: 0.0)
+            daily + over - att.advanceAmount - att.deductionAmount
+        }
+        
+        paint.color = android.graphics.Color.parseColor("#F1F5F9")
+        canvas.drawRoundRect(30f, 135f, pageWidth - 30f, 185f, 12f, 12f, paint)
+        
+        paint.color = android.graphics.Color.parseColor("#E2E8F0")
+        paint.style = android.graphics.Paint.Style.STROKE
+        paint.strokeWidth = 1f
+        canvas.drawRoundRect(30f, 135f, pageWidth - 30f, 185f, 12f, 12f, paint)
+        
+        paint.style = android.graphics.Paint.Style.FILL
+        paint.color = android.graphics.Color.BLACK
+        canvas.drawText("إجمالي المقيدين: $totalWorkers عمال", pageWidth - 50f, 165f, boldTextPaint)
+        
+        val salaryPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.parseColor("#2E7D32")
+            textSize = 13f
+            isFakeBoldText = true
+            textAlign = android.graphics.Paint.Align.LEFT
+        }
+        canvas.drawText("صافي المستحقات التراكمية: $totalSalaryToPay ج.م", 50f, 165f, salaryPaint)
+        
+        // Table Header
+        paint.color = android.graphics.Color.parseColor("#0F2C59")
+        canvas.drawRect(30f, 210f, pageWidth - 30f, 240f, paint)
+        
+        val colWidths = floatArrayOf(120f, 50f, 85f, 85f, 85f, 110f)
+        val colHeaders = arrayOf("الصافي المستحق", "أوفرتايم", "إجمالي السلف", "أجر اليوميات", "الحضور", "اسم العامل")
+        
+        var currentX = 30f
+        for (i in colHeaders.indices) {
+            val align = if (i == colHeaders.size - 1) android.graphics.Paint.Align.RIGHT else if (i == 0) android.graphics.Paint.Align.LEFT else android.graphics.Paint.Align.CENTER
+            headerTextPaint.textAlign = align
+            
+            val textX = if (i == colHeaders.size - 1) currentX + colWidths[i] - 10f else if (i == 0) currentX + 10f else currentX + (colWidths[i] / 2)
+            canvas.drawText(colHeaders[i], textX, 229f, headerTextPaint)
+            currentX += colWidths[i]
+        }
+        
+        // Table Rows
+        var currentY = 240f
+        paint.strokeWidth = 0.5f
+        
+        workers.forEachIndexed { index, worker ->
+            val workerAtts = allAttendance.filter { it.workerId == worker.id }
+            val presentAtts = workerAtts.filter { it.status == "present" }
+            val daysCount = presentAtts.size
+            val totalBase = presentAtts.size * worker.dailySalary
+            val totalOvertimePay = presentAtts.sumOf { it.overtimeHours * worker.overtimeHourRate }
+            val totalAdvance = workerAtts.sumOf { it.advanceAmount }
+            val totalDeduction = workerAtts.sumOf { it.deductionAmount }
+            val net = totalBase + totalOvertimePay - totalAdvance - totalDeduction
+            
+            paint.color = if (index % 2 == 0) android.graphics.Color.WHITE else android.graphics.Color.parseColor("#F8FAFC")
+            canvas.drawRect(30f, currentY, pageWidth - 30f, currentY + 30f, paint)
+            
+            paint.color = android.graphics.Color.parseColor("#E2E8F0")
+            canvas.drawLine(30f, currentY + 30f, pageWidth - 30f, currentY + 30f, paint)
+            
+            val rowValues = arrayOf(
+                "$net ج.م",
+                "${presentAtts.sumOf { it.overtimeHours }} س",
+                "$totalAdvance ج.م",
+                "$totalBase  ج.م",
+                "$daysCount أيام",
+                worker.fullName
+            )
+            
+            currentX = 30f
+            for (i in rowValues.indices) {
+                val align = if (i == rowValues.size - 1) android.graphics.Paint.Align.RIGHT else if (i == 0) android.graphics.Paint.Align.LEFT else android.graphics.Paint.Align.CENTER
+                val cellPaint = if (i == 0) boldTextPaint.apply { color = android.graphics.Color.parseColor("#0F2C59") } else textPaint.apply { color = android.graphics.Color.BLACK }
+                cellPaint.textAlign = align
+                
+                val textX = if (i == rowValues.size - 1) currentX + colWidths[i] - 10f else if (i == 0) currentX + 10f else currentX + (colWidths[i] / 2)
+                canvas.drawText(rowValues[i], textX, currentY + 18f, cellPaint)
+                currentX += colWidths[i]
+            }
+            
+            currentY += 30f
+        }
+        
+        // Footer
+        val footerPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.parseColor("#64748B")
+            textSize = 9f
+            textAlign = android.graphics.Paint.Align.CENTER
+        }
+        canvas.drawText("شعارنا الأمان والإتقان - تم توليد التقرير آلياً بواسطة تطبيق El-MOHTADI", pageWidth / 2f, pageHeight - 30f, footerPaint)
+        
+        pdfDocument.finishPage(page)
+        
+        val pdfFile = java.io.File(context.cacheDir, "El-Mohtadi-Payroll-Report.pdf")
+        val outputStream = java.io.FileOutputStream(pdfFile)
+        pdfDocument.writeTo(outputStream)
+        pdfDocument.close()
+        outputStream.close()
+        
+        val uri = androidx.core.content.FileProvider.getUriForFile(
+            context,
+            context.packageName + ".fileprovider",
+            pdfFile
+        )
+        
+        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            type = "application/pdf"
+            putExtra(android.content.Intent.EXTRA_STREAM, uri)
+            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        val chooser = android.content.Intent.createChooser(intent, "تصدير ومشاركة التقرير المالي كـ PDF").apply {
+            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(chooser)
+        android.widget.Toast.makeText(context, "تم توليد وتصدير ملف PDF بنجاح!", android.widget.Toast.LENGTH_SHORT).show()
+    } catch (e: Exception) {
+        e.printStackTrace()
+        android.widget.Toast.makeText(context, "فشل تصدير ملف PDF: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+    }
+}
+
+fun exportBackupToGoogleDrive(context: android.content.Context, jsonBackupString: String) {
+    try {
+        val backupFile = java.io.File(context.cacheDir, "El-Mohtadi-Backup.json")
+        val writer = java.io.FileWriter(backupFile)
+        writer.write(jsonBackupString)
+        writer.close()
+        
+        val uri = androidx.core.content.FileProvider.getUriForFile(
+            context,
+            context.packageName + ".fileprovider",
+            backupFile
+        )
+        
+        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            type = "application/json"
+            putExtra(android.content.Intent.EXTRA_STREAM, uri)
+            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        val chooser = android.content.Intent.createChooser(intent, "حفظ النسخة الاحتياطية بمزامنة Google Drive").apply {
+            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(chooser)
+        android.widget.Toast.makeText(context, "تم تجهيز النسخة الاحتياطية للمزامنة!", android.widget.Toast.LENGTH_SHORT).show()
+    } catch (e: Exception) {
+        android.widget.Toast.makeText(context, "فشل تجهيز المزامنة: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+    }
+}
+

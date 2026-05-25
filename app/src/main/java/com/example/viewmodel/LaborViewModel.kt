@@ -609,7 +609,75 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    // --- Multi-Contact Selection Feature ---
+    val phoneContactsState = MutableStateFlow<List<PhoneContact>>(emptyList())
+    val isLoadingContacts = MutableStateFlow(false)
+
+    fun loadPhoneContacts(contentResolver: android.content.ContentResolver) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            isLoadingContacts.value = true
+            val list = mutableListOf<PhoneContact>()
+            try {
+                val uri = android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI
+                val projection = arrayOf(
+                    android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                    android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER,
+                    android.provider.ContactsContract.CommonDataKinds.Phone.PHOTO_THUMBNAIL_URI
+                )
+                val cursor = contentResolver.query(uri, projection, null, null, android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC")
+                cursor?.use { c ->
+                    val nameCol = c.getColumnIndex(android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+                    val numCol = c.getColumnIndex(android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER)
+                    val photoCol = c.getColumnIndex(android.provider.ContactsContract.CommonDataKinds.Phone.PHOTO_THUMBNAIL_URI)
+                    
+                    val seenPhones = mutableSetOf<String>()
+                    
+                    while (c.moveToNext()) {
+                        val name = if (nameCol >= 0) c.getString(nameCol) else ""
+                        val rawPhone = if (numCol >= 0) c.getString(numCol) else ""
+                        val phone = rawPhone.replace("\\s".toRegex(), "").replace("-", "")
+                        val photo = if (photoCol >= 0) c.getString(photoCol) else null
+                        
+                        if (name.isNotEmpty() && phone.isNotEmpty() && phone !in seenPhones) {
+                            seenPhones.add(phone)
+                            list.add(PhoneContact(name, phone, photo))
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            phoneContactsState.value = list
+            isLoadingContacts.value = false
+        }
+    }
+
+    fun importMultipleWorkers(selectedContacts: List<PhoneContact>, salary: Double, rate: Double) {
+        viewModelScope.launch {
+            selectedContacts.forEach { contact ->
+                repository.insertWorker(
+                    Worker(
+                        fullName = contact.name,
+                        dailySalary = salary,
+                        overtimeHourRate = rate,
+                        phone = contact.phone,
+                        notes = "مستورد من جهات الاتصال",
+                        isActive = true,
+                        photoUri = contact.photoUri
+                    )
+                )
+            }
+        }
+    }
 }
+
+data class PhoneContact(
+    val name: String,
+    val phone: String,
+    val photoUri: String?,
+    var isSelected: Boolean = false
+)
 
 // Domain Models & State Wrappers
 data class WorkerAttendanceState(

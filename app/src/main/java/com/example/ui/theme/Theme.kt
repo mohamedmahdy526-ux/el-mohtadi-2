@@ -30,8 +30,8 @@ private val LightColorScheme = lightColorScheme(
     onPrimary = Color.White,
     onSecondary = Color.White,
     onTertiary = Color.Black,
-    onBackground = Color(0xFF1D242E),
-    onSurface = Color(0xFF1D242E),
+    onBackground = ConstructionBlue,
+    onSurface = ConstructionBlue,
     error = AbsentRed
 )
 

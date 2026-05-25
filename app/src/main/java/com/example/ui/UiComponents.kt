@@ -739,6 +739,7 @@ fun DashboardView(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
+            .verticalScroll(rememberScrollState())
     ) {
         // 1. Sleek Top Header Greeting
         Row(

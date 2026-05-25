@@ -1,0 +1,6 @@
+{
+  "name": "Labor Payroll",
+  "description": "An offline-first Android application for construction labor contractors to manage workers, attendance, overtime, advances, deductions, payroll, and sites.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

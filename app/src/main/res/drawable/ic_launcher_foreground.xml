@@ -1,0 +1,32 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Center Canvas (54,54) -->
+    <!-- Left-to-Right diagonal cross axes / hammers representing industrial labor -->
+    <path
+        android:fillColor="#ECEFF1"
+        android:pathData="M38,70 L70,38 L74,42 L42,74 Z" />
+    <path
+        android:fillColor="#ECEFF1"
+        android:pathData="M70,70 L38,38 L34,42 L66,74 Z" />
+
+    <!-- Sturdy Construction Hardhat / Core warning gear -->
+    <!-- Main Dome -->
+    <path
+        android:fillColor="#FFB300"
+        android:pathData="M26,52 C26,28 82,28 82,52 Z" />
+
+    <!-- Dome Top Spine Ridge -->
+    <path
+        android:fillColor="#FFA000"
+        android:pathData="M50,28 H58 V52 H50 Z" />
+
+    <!-- Front Visor Brim -->
+    <path
+        android:fillColor="#FF9100"
+        android:pathData="M20,52 H88 V58 H20 Z" />
+        
+</vector>

@@ -295,8 +295,8 @@ fun MainAppContainer(viewModel: LaborViewModel) {
                     tonalElevation = 8.dp
                 ) {
                     val items = listOf(
-                        Triple(AppScreen.Dashboard, Icons.Default.Home, "لوحة التحكم"),
-                        Triple(AppScreen.Attendance, Icons.Default.CheckCircle, "التحضير اليومي"),
+                        Triple(AppScreen.Dashboard, Icons.Default.Home, "لوحة"),
+                        Triple(AppScreen.Attendance, Icons.Default.CheckCircle, "التحضير"),
                         Triple(AppScreen.Workers, Icons.Default.Person, "العمال"),
                         Triple(AppScreen.Sites, Icons.Default.LocationOn, "المواقع"),
                         Triple(AppScreen.Reports, Icons.Default.List, "التقارير"),
@@ -774,7 +774,7 @@ fun DashboardView(
                 .fillMaxWidth()
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(16.dp)
         ) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -783,7 +783,7 @@ fun DashboardView(
                 Icon(imageVector = Icons.Default.Refresh, contentDescription = "Autofill")
                 Text(
                     text = "نسخ تفصيلية لحضور الأمس تلقائياً (ملء ذكي)",
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
                 )
@@ -802,7 +802,7 @@ fun DashboardView(
                     .weight(1f)
                     .height(64.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = ConstructionSafetyYellow),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(imageVector = Icons.Default.Check, contentDescription = "Add attendance", tint = Color.Black)
@@ -816,7 +816,7 @@ fun DashboardView(
                     .weight(1f)
                     .height(64.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(imageVector = Icons.Default.LocationOn, contentDescription = "Add site")
@@ -830,7 +830,9 @@ fun DashboardView(
         // Guide Banner with zero typing notice
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, Color(0xFFFEF08A)), // Subtle yellow border
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF9C3)) // Soft yellow background
         ) {
             Row(
                 modifier = Modifier.padding(12.dp),
@@ -844,10 +846,11 @@ fun DashboardView(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "نصيحة للمقاول: للتحضير فائق السرعة، انتقل لصفحة 'التحضير اليومي' واضغط ضغطة واحدة على اسم العامل لتأكيد حضوره وغيابه الفوري دون الحاجة للكتابة!\n\nPro-Tip: Tap worker item to instantly toggle Present/Absent on Attendance tab.",
+                    text = "نصيحة للمقاول: للتحضير فائق السرعة، انتقل لصفحة 'التحضير اليومي' واضغط ضغطة واحدة على اسم العامل لتأكيد حضوره وغيابه الفوري دون الحاجة للكتابة!",
                     fontSize = 12.sp,
                     lineHeight = 16.sp,
-                    fontWeight = FontWeight.Normal
+                    color = Color(0xFF854D0E), // Soft dark gold text
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
@@ -866,10 +869,11 @@ fun DashboardStatsCard(
     iconColor: Color = MaterialTheme.colorScheme.primary
 ) {
     Card(
-        modifier = modifier.height(110.dp),
+        modifier = modifier.height(115.dp),
         colors = CardDefaults.cardColors(containerColor = color),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(2.dp)
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
@@ -882,34 +886,36 @@ fun DashboardStatsCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = title,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = textColor,
-                    modifier = Modifier.weight(1f)
-                )
                 if (icon != null) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
                         tint = iconColor,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
+                Text(
+                    text = title,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Gray,
+                    textAlign = TextAlign.End
+                )
             }
             Text(
                 text = value,
-                fontSize = 18.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Black,
                 color = textColor,
                 modifier = Modifier.align(Alignment.End)
             )
             Text(
                 text = subtitle,
-                fontSize = 10.sp,
-                color = textColor.copy(alpha = 0.7f),
-                modifier = Modifier.align(Alignment.Start)
+                fontSize = 9.sp,
+                color = Color.Gray,
+                lineHeight = 11.sp,
+                textAlign = TextAlign.End,
+                modifier = Modifier.align(Alignment.End)
             )
         }
     }
@@ -1816,7 +1822,7 @@ fun WorkersView(
                                     Box(
                                         modifier = Modifier
                                             .size(50.dp)
-                                            .clip(CircleShape)
+                                            .clip(RoundedCornerShape(12.dp))
                                             .background(bg)
                                             .align(Alignment.Center),
                                         contentAlignment = Alignment.Center
@@ -2434,21 +2440,39 @@ fun SitesView(viewModel: LaborViewModel, onAddSiteClick: () -> Unit) {
                 items(sites, key = { it.id }) { site ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(20.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(text = site.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                 IconButton(onClick = { viewModel.deleteSite(site.id) }) {
-                                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFEF4444))
                                 }
+                                Text(text = site.name, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color(0xFF1F2937))
                             }
-                            Text(text = "الموقع: " + site.location.ifEmpty { "غير محدد" }, fontSize = 12.sp, color = Color.DarkGray)
-                            Text(text = "ملاحظات: " + site.notes.ifEmpty { "بلا ملاحظات" }, fontSize = 12.sp, color = Color.Gray)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = site.location.ifEmpty { "غير محدد" }, fontSize = 14.sp, color = Color(0xFF4B5563))
+                                Text(text = "الموقع: ", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1F2937))
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = site.notes.ifEmpty { "بلا ملاحظات" }, fontSize = 14.sp, color = Color(0xFF4B5563))
+                                Text(text = "ملاحظات: ", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1F2937))
+                            }
                         }
                     }
                 }
@@ -2732,12 +2756,14 @@ fun SettingsView(viewModel: LaborViewModel) {
         // Security Options (Lock App PIN)
         Card(
             modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(text = "حماية التطبيق برمز PIN أمني", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(text = "حماية التطبيق برمز PIN أمني", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1F2937))
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(text = "تفعيل قفل التطبيق بـ 4 أرقام لحماية سجلات الأجور والرواتب والعمال من المتطفلين أو الفقدان أثناء العمل بالمواقع والإنشاءات.", fontSize = 11.sp, color = Color.Gray)
+                Text(text = "تفعيل قفل التطبيق بـ 4 أرقام لحماية سجلات الأجور والرواتب والعمال من المتطفلين أو الفقدان أثناء العمل بالمواقع والإنشاءات.", fontSize = 12.sp, color = Color.Gray, lineHeight = 16.sp)
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -2746,13 +2772,13 @@ fun SettingsView(viewModel: LaborViewModel) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "تمكين القفل الأمني PIN:")
                     Switch(
                         checked = settings.pinEnabled,
                         onCheckedChange = { enabled ->
                             viewModel.updatePinSetting(enabled, editPinValue)
                         }
                     )
+                    Text(text = "تمكين القفل الأمني PIN:", fontWeight = FontWeight.Bold, color = Color(0xFF1F2937), fontSize = 14.sp)
                 }
 
                 if (settings.pinEnabled) {
@@ -2779,23 +2805,25 @@ fun SettingsView(viewModel: LaborViewModel) {
         // Appearance config (Light/Dark themes)
         Card(
             modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(20.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "الوضع الداكن (مظهر الليل)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text(text = "تحويل ألوان التطبيق لدرجات داكنة ومريحة للعين في ظروف الإضاءة الضعيفة والمواقع المغلقة.", fontSize = 11.sp, color = Color.Gray)
-                }
                 Switch(
                     checked = settings.darkMode,
                     onCheckedChange = { viewModel.updateDarkModeSetting(it) }
                 )
+                Column(modifier = Modifier.weight(1f).padding(start = 12.dp), horizontalAlignment = Alignment.End) {
+                    Text(text = "الوضع الداكن (مظهر الليل)", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1F2937))
+                    Text(text = "تحويل ألوان التطبيق لدرجات داكنة ومريحة للعين في ظروف الإضاءة الضعيفة والمواقع المغلقة.", fontSize = 12.sp, color = Color.Gray, lineHeight = 16.sp, textAlign = TextAlign.End)
+                }
             }
         }
 
@@ -2804,14 +2832,17 @@ fun SettingsView(viewModel: LaborViewModel) {
         // Font size custom scale configuration
         Card(
             modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(text = "تعديل وملاءمة حجم خط نصوص التطبيق", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(text = "تعديل وملاءمة حجم خط نصوص التطبيق", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1F2937))
                 Text(
                     text = "اختر الحجم الأنسب لقراءة وتدقيق قائمة حضور عمال المقاولة والأجور بوضوح تام.",
-                    fontSize = 11.sp,
-                    color = Color.Gray
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    lineHeight = 16.sp
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -2830,9 +2861,10 @@ fun SettingsView(viewModel: LaborViewModel) {
                         Button(
                             onClick = { viewModel.updateFontScaleSetting(scale) },
                             modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
-                                contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                containerColor = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFFDBEAFE),
+                                contentColor = if (isSelected) Color.White else Color(0xFF1E3A8A)
                             ),
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
                         ) {
@@ -2851,11 +2883,13 @@ fun SettingsView(viewModel: LaborViewModel) {
 
         Card(
             modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(text = "النسخ الاحتياطي واستعادة البيانات", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text(text = "بما أن التطبيق يعمل بالكامل دون إنترنت، يمكنك سحب نسخة احتياطية مشفرة نصياً وحفظها بأمان، أو استعادتها في أي وقت.", fontSize = 11.sp, color = Color.Gray)
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(text = "النسخ الاحتياطي واستعادة البيانات", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1F2937))
+                Text(text = "بما أن التطبيق يعمل بالكامل دون إنترنت، يمكنك سحب نسخة احتياطية مشفرة نصياً وحفظها بأمان، أو استعادتها في أي وقت.", fontSize = 12.sp, color = Color.Gray, lineHeight = 16.sp)
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -2876,6 +2910,8 @@ fun SettingsView(viewModel: LaborViewModel) {
                                 }
                             }
                         },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(text = "تصدير للحافظة", fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -2883,6 +2919,7 @@ fun SettingsView(viewModel: LaborViewModel) {
 
                     Button(
                         onClick = { showImportDialog = true },
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                     ) {

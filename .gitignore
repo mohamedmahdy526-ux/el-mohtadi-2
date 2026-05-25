@@ -19,3 +19,4 @@ debug.keystore
 *.apk
 *.keystore.base64
 .build-outputs/
+gradle_home/
